@@ -27,3 +27,24 @@ Carpeta `evidencias/`: versión de Hadoop, SSH sin contraseña (localhost y api 
 3. **`down` vs `down -v`:** `down` borra contenedores y red, pero el volumen nombrado se conserva y los datos siguen. `down -v` también borra los volúmenes, así que se pierde la base de datos.
 4. **MapReduce no siempre es más rápido:** 400 MB caben en una máquina y el costo fijo (JVM, orquestación, shuffle, disco intermedio) supera el beneficio. Conviene con datos que exceden una sola máquina, varios nodos para paralelizar y trabajo batch sobre decenas o cientos de GB.
 5. **CMD vs ENTRYPOINT y COPY vs ADD:** CMD es el comando por defecto y se sobreescribe fácil con `docker run imagen otro-comando`; ENTRYPOINT fija el ejecutable y lo que se pasa se agrega como argumentos. COPY solo copia archivos locales; ADD además descomprime tar locales y acepta URLs, por eso se prefiere COPY.
+
+## Comandos del job y la comparativa
+Job de Hadoop Streaming (1 reducer):
+
+    docker compose exec -T -u hadoopuser -w /home/hadoopuser/mapreduce hadoop bash -c '
+      rm -rf /data/output/resultado
+      time hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-*.jar \
+        -D mapreduce.job.reduces=1 \
+        -files mapper.py,reducer.py \
+        -input /data/input/dataset.csv \
+        -output /data/output/resultado \
+        -mapper "python3 mapper.py" \
+        -reducer "python3 reducer.py"
+    '
+
+Script secuencial y verificación:
+
+    docker compose exec -T -u hadoopuser hadoop bash -c 'time python3 /home/hadoopuser/mapreduce/secuencial.py > /tmp/secuencial.txt'
+    docker compose exec -T hadoop diff /tmp/secuencial.txt /data/output/resultado/part-00000 && echo COINCIDEN
+
+Persistencia: `docker compose down && docker compose up -d` y luego `curl localhost:5000/resultados` (los datos siguen porque `pgdata` es un volumen nombrado).
