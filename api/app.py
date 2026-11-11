@@ -77,6 +77,11 @@ def borrar(clave):
         cur.execute("DELETE FROM resultados WHERE clave = %s", (clave,))
     return "", 204
 
+@app.get("/")
+def inicio():
+    return jsonify(servicio="DataMart API", endpoints=["/resultados", "/resultados/<clave>"])
+
+
 if __name__ == "__main__":
     init_db()
     app.run(host="0.0.0.0", port=5000)
